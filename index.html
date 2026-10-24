@@ -1,0 +1,532 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><title>HofDoku</title><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="HofDoku"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="theme-color" content="#2f6b3a">
+<style>
+/* Layout: mobile Arbeitsoberfläche – Kopf mit Betrieb und Datum, Inhalt, feste Tableiste unten (Heute · Erfassen · Verlauf · Export · Betrieb) */
+:root{
+  --bg:#f4f5f1; --surface:#ffffff; --fg:#1d241d; --muted:#5b665a; --line:#dbe0d5;
+  --accent:#2f6b3a; --accent-fg:#ffffff; --accent-soft:#e2eee1;
+  --ok:#2f6b3a; --warn:#8a5a00; --warn-soft:#fbefd6; --bad:#a3271f; --bad-soft:#fbe3e0;
+  --f-body:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#131713; --surface:#1b211b; --fg:#e5eae2; --muted:#9aa596; --line:#2d362c;
+  --accent:#7fbf86; --accent-fg:#102010; --accent-soft:#213221;
+  --ok:#7fbf86; --warn:#e3b55c; --warn-soft:#382d16; --bad:#f08c82; --bad-soft:#3a1f1c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#131713; --surface:#1b211b; --fg:#e5eae2; --muted:#9aa596; --line:#2d362c;
+  --accent:#7fbf86; --accent-fg:#102010; --accent-soft:#213221;
+  --ok:#7fbf86; --warn:#e3b55c; --warn-soft:#382d16; --bad:#f08c82; --bad-soft:#3a1f1c; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.45;margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.app{max-width:760px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line);padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:1.05rem;letter-spacing:-.01em}
+.brand small{display:block;font-weight:400;font-size:.8rem;color:var(--muted)}
+.today{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+main{flex:1;padding-block:16px 110px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+nav.tabs .in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+nav.tabs button{font:inherit;font-size:.78rem;background:none;border:0;color:var(--muted);padding:10px 2px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8}
+nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:600}
+h2{font-size:1.15rem;margin:0;text-wrap:balance}
+h3{font-size:1rem;margin:0}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.banner{background:var(--warn-soft);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;font-size:.9rem}
+.banner.info{background:var(--accent-soft)}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+.item .txt{flex:1;min-width:0}
+.item .t1{font-weight:600}
+.item .t2{font-size:.85rem;color:var(--muted);overflow-wrap:anywhere}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.d-ok{background:var(--ok)} .d-warn{background:var(--warn)} .d-bad{background:var(--bad)}
+.pill{font-family:var(--f-mono);font-size:.72rem;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.p-ok{background:var(--accent-soft);color:var(--ok)} .p-warn{background:var(--warn-soft);color:var(--warn)} .p-bad{background:var(--bad-soft);color:var(--bad)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.mod{font:inherit;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;cursor:pointer;color:var(--fg);display:flex;flex-direction:column;gap:4px;min-height:84px}
+.mod b{font-size:.98rem}
+.mod span{font-size:.75rem;color:var(--muted)}
+.mod:hover{border-color:var(--accent)}
+button.btn{font:inherit;font-weight:600;font-size:.95rem;border-radius:8px;padding:11px 16px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);cursor:pointer}
+button.btn.sec{background:var(--surface);color:var(--accent)}
+button.btn.danger{background:var(--surface);color:var(--bad);border-color:var(--bad)}
+button.btn.sm{padding:6px 10px;font-size:.82rem}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+form.f{display:flex;flex-direction:column;gap:14px}
+.fld{display:flex;flex-direction:column;gap:5px}
+.fld label{font-size:.85rem;font-weight:600}
+.fld .hint{font-size:.78rem;color:var(--muted)}
+.req::after{content:" *";color:var(--bad)}
+input,select,textarea{font:inherit;font-size:1rem;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);width:100%;min-width:0}
+textarea{min-height:70px;resize:vertical}
+input[type=checkbox]{width:auto}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:.92rem}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.err{color:var(--bad);font-size:.82rem}
+.warnbox{background:var(--bad-soft);color:var(--bad);border-radius:8px;padding:8px 10px;font-size:.85rem}
+.basis{font-family:var(--f-mono);font-size:.72rem;color:var(--muted)}
+.photo-prev{display:flex;gap:8px;flex-wrap:wrap}
+.photo-prev img{width:84px;height:84px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.entry{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.entry .hd{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
+.entry dl{display:grid;grid-template-columns:minmax(110px,max-content) 1fr;gap:2px 12px;margin:0;font-size:.88rem}
+.entry dt{color:var(--muted)} .entry dd{margin:0;overflow-wrap:anywhere}
+.entry.corrected{opacity:.6}
+.meta{font-family:var(--f-mono);font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.tbl{overflow-x:auto}
+.tbl table{border-collapse:collapse;width:100%;font-size:.85rem}
+.tbl th,.tbl td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl th{font-size:.75rem;color:var(--muted);font-weight:600}
+dialog{border:0;border-radius:12px;padding:0;width:min(560px,calc(100vw - 32px));background:var(--surface);color:var(--fg)}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+dialog .dbody{padding:18px;display:flex;flex-direction:column;gap:12px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:.9rem;z-index:20}
+@media (max-width:420px){.two{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:no-preference){.item,.mod{transition:border-color .15s}}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand" id="brand">HofDoku<small id="betriebName">–</small></div>
+    <div class="today" id="todayLbl"></div>
+  </header>
+  <main id="main" aria-live="polite"></main>
+</div>
+<nav class="tabs" aria-label="Bereiche"><div class="in" id="tabs"></div></nav>
+<div class="toast" id="toast" hidden></div>
+
+<script src="lib/jspdf.umd.min.js"></script>
+<script src="lib/jspdf.plugin.autotable.min.js"></script>
+<script>
+"use strict";
+/* ---------- Grundlagen ---------- */
+const APP_VERSION = "0.2 (Testversion, 24.10.2026)";
+const RETENTION_YEARS = 2; // Vorschlag: EU nennt keine feste Frist (VO 852/2004 Art. 5: "angemessener Zeitraum")
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad = n => String(n).padStart(2,"0");
+const isoDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const nowTime = () => { const d=new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const deDate = s => { if(!s) return ""; const [y,m,d]=s.slice(0,10).split("-"); return `${d}.${m}.${y}`; };
+const deStamp = iso => { const d=new Date(iso); return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const daysBetween = (a,b) => Math.floor((new Date(b+"T12:00")-new Date(a+"T12:00"))/86400000);
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,2600); }
+
+/* ---------- Speicher: IndexedDB, Fallback Arbeitsspeicher ---------- */
+const DB = (() => {
+  let db = null, mem = {entries:new Map(), kv:new Map()};
+  function open(){ return new Promise(res => {
+    try{
+      const r = indexedDB.open("hofdoku",1);
+      r.onupgradeneeded = () => { const d=r.result; d.createObjectStore("entries",{keyPath:"id"}); d.createObjectStore("kv"); };
+      r.onsuccess = () => { db=r.result; res(true); };
+      r.onerror = () => res(false);
+    }catch(e){ res(false); }
+  });}
+  function tx(store, mode, fn){ return new Promise((res,rej)=>{ const t=db.transaction(store,mode); const s=t.objectStore(store); const out=fn(s); t.oncomplete=()=>res(out && out.result!==undefined ? out.result : undefined); t.onerror=()=>rej(t.error); }); }
+  return {
+    open, get persistent(){ return !!db; },
+    async all(){ if(!db) return [...mem.entries.values()]; return new Promise((res,rej)=>{ const r=db.transaction("entries").objectStore("entries").getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); },
+    async put(e){ if(!db){ mem.entries.set(e.id,e); return; } await tx("entries","readwrite",s=>s.put(e)); },
+    async clear(){ if(!db){ mem.entries.clear(); mem.kv.clear(); return; } await tx("entries","readwrite",s=>s.clear()); await tx("kv","readwrite",s=>s.clear()); },
+    async getKV(k){ if(!db) return mem.kv.get(k); return new Promise((res,rej)=>{ const r=db.transaction("kv").objectStore("kv").get(k); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); },
+    async setKV(k,v){ if(!db){ mem.kv.set(k,v); return; } await tx("kv","readwrite",s=>s.put(v,k)); }
+  };
+})();
+
+/* ---------- Dokumentationsbereiche (Rechtsgrundlagen im Original geprüft 24.10.2026) ---------- */
+const MODULES = {
+  temperatur:{ label:"Kühltemperatur", sub:"Kühlschrank, Kühlraum, Truhe", basis:"VO (EG) 852/2004 Anhang II (Kühlkette)",
+    fields:[
+      {k:"datum",l:"Datum",t:"date",req:1,def:"today"},
+      {k:"uhrzeit",l:"Uhrzeit",t:"time",req:1,def:"now"},
+      {k:"geraet",l:"Gerät",t:"select",req:1,src:"geraete"},
+      {k:"ist",l:"Gemessene Temperatur (°C)",t:"number",req:1,step:"0.1"},
+      {k:"massnahme",l:"Maßnahme bei Abweichung",t:"textarea",hint:"Pflicht, wenn der Grenzwert überschritten ist: z. B. Ware geprüft, umgelagert, entsorgt, Gerät repariert."},
+      {k:"foto",l:"Foto der Anzeige (optional)",t:"photo"},
+      {k:"kuerzel",l:"Kürzel",t:"select",req:1,src:"personen"}
+    ],
+    check(d,S){ const g=S.geraete.find(x=>x.id===d.geraet); if(g && d.ist!=="" && Number(d.ist)>Number(g.max)) return `Grenzwert ${g.max} °C überschritten`; return ""; }
+  },
+  wareneingang:{ label:"Wareneingang", sub:"Lieferant, Charge, Zustand", basis:"VO (EG) 178/2002 Art. 18 · VO (EG) 852/2004",
+    fields:[
+      {k:"datum",l:"Datum",t:"date",req:1,def:"today"},
+      {k:"lieferant",l:"Lieferant",t:"text",req:1,list:"lieferant"},
+      {k:"produkt",l:"Produkt",t:"text",req:1,list:"produkt"},
+      {k:"menge",l:"Menge",t:"text"},
+      {k:"charge",l:"Charge / Los-Nummer",t:"text",hint:"Wichtig für die Rückverfolgbarkeit."},
+      {k:"mhd",l:"MHD / Verbrauchsdatum",t:"date"},
+      {k:"kuehl",l:"Kühlpflichtige Ware?",t:"select",req:1,opts:["nein","ja"]},
+      {k:"temp",l:"Temperatur bei Anlieferung (°C)",t:"number",step:"0.1",showIf:d=>d.kuehl==="ja",reqIf:d=>d.kuehl==="ja"},
+      {k:"zustand",l:"Zustand (Verpackung, Sauberkeit, Datum)",t:"select",req:1,opts:["in Ordnung","nicht in Ordnung"]},
+      {k:"bio",l:"Bio-Ware: Bio-Zertifikat des Lieferanten liegt vor",t:"check",hint:"Optional. Die Bio-Dokumentation nach der EU-Öko-Verordnung ist nicht Teil dieser Version."},
+      {k:"massnahme",l:"Maßnahme bei Abweichung",t:"textarea"},
+      {k:"foto",l:"Foto Lieferschein (optional)",t:"photo"},
+      {k:"kuerzel",l:"Kürzel",t:"select",req:1,src:"personen"}
+    ],
+    check(d,S){ if(d.zustand==="nicht in Ordnung") return "Ware nicht in Ordnung"; if(d.kuehl==="ja" && d.temp!=="" && Number(d.temp)>Number(S.betrieb.wareneingangMax)) return `Anliefertemperatur über ${S.betrieb.wareneingangMax} °C`; return ""; }
+  },
+  reinigung:{ label:"Reinigung", sub:"nach Reinigungsplan", basis:"VO (EG) 852/2004 Anhang II",
+    fields:[
+      {k:"datum",l:"Datum",t:"date",req:1,def:"today"},
+      {k:"uhrzeit",l:"Uhrzeit",t:"time",def:"now"},
+      {k:"bereich",l:"Bereich laut Reinigungsplan",t:"select",req:1,src:"plan"},
+      {k:"ergebnis",l:"Ergebnis",t:"select",req:1,opts:["sauber","Nachreinigung nötig"]},
+      {k:"massnahme",l:"Maßnahme bei Abweichung",t:"textarea"},
+      {k:"foto",l:"Foto (optional)",t:"photo"},
+      {k:"kuerzel",l:"Kürzel",t:"select",req:1,src:"personen"}
+    ],
+    check(d){ return d.ergebnis==="Nachreinigung nötig" ? "Nachreinigung nötig" : ""; }
+  },
+  schaedlinge:{ label:"Schädlingskontrolle", sub:"Fallen, Spuren, Befall", basis:"VO (EG) 852/2004 Anhang II",
+    fields:[
+      {k:"datum",l:"Datum",t:"date",req:1,def:"today"},
+      {k:"bereich",l:"Kontrollierte Bereiche",t:"text",req:1,def:"alle Räume"},
+      {k:"befund",l:"Befund",t:"select",req:1,opts:["kein Befall","Befall oder Spuren"]},
+      {k:"art",l:"Art (z. B. Mäuse, Motten)",t:"text",showIf:d=>d.befund==="Befall oder Spuren"},
+      {k:"dienstleister",l:"Schädlingsbekämpfer (falls beauftragt)",t:"text"},
+      {k:"massnahme",l:"Maßnahme bei Befall",t:"textarea"},
+      {k:"foto",l:"Foto (optional)",t:"photo"},
+      {k:"kuerzel",l:"Kürzel",t:"select",req:1,src:"personen"}
+    ],
+    check(d){ return d.befund==="Befall oder Spuren" ? "Befall festgestellt" : ""; }
+  },
+  herstellung:{ label:"Herstellung / Charge", sub:"Hofverarbeitung, Erhitzen", basis:"VO (EG) 852/2004 Art. 5 (HACCP) · VO (EG) 178/2002 Art. 18",
+    fields:[
+      {k:"datum",l:"Herstellungsdatum",t:"date",req:1,def:"today"},
+      {k:"produkt",l:"Produkt",t:"text",req:1,list:"produkt"},
+      {k:"charge",l:"Eigene Charge",t:"text",req:1,hint:"Vorschlag: Datum + Kurzname, z. B. 20261024-NUD"},
+      {k:"menge",l:"Menge",t:"text"},
+      {k:"zutaten",l:"Zutaten mit Lieferant und Charge",t:"textarea",req:1,hint:"Eine Zutat pro Zeile, z. B. Eier – Eigener Hof – 20261023"},
+      {k:"grenz",l:"Mindest-Kerntemperatur laut eigenem HACCP-Plan (°C)",t:"number",step:"0.1",hint:"Nur wenn Erhitzen ein kritischer Kontrollpunkt ist."},
+      {k:"kern",l:"Gemessene Kerntemperatur (°C)",t:"number",step:"0.1",reqIf:d=>d.grenz!==""},
+      {k:"allergene",l:"Allergene",t:"text",hint:"z. B. Ei, Gluten"},
+      {k:"mhd",l:"MHD / Verbrauchsdatum",t:"date"},
+      {k:"massnahme",l:"Maßnahme bei Abweichung",t:"textarea"},
+      {k:"foto",l:"Foto (optional)",t:"photo"},
+      {k:"kuerzel",l:"Kürzel",t:"select",req:1,src:"personen"}
+    ],
+    check(d){ if(d.grenz!=="" && d.kern!=="" && Number(d.kern)<Number(d.grenz)) return `Kerntemperatur unter ${d.grenz} °C`; return ""; }
+  },
+  abgabe:{ label:"Abgabe an Wiederverkäufer", sub:"Gastronomie, Läden, Märkte", basis:"VO (EG) 178/2002 Art. 18",
+    fields:[
+      {k:"datum",l:"Datum",t:"date",req:1,def:"today"},
+      {k:"abnehmer",l:"Abnehmer (Unternehmen)",t:"text",req:1,list:"abnehmer",hint:"Verkäufe an Endverbraucher müssen nicht erfasst werden."},
+      {k:"produkt",l:"Produkt",t:"text",req:1,list:"produkt"},
+      {k:"charge",l:"Charge",t:"text"},
+      {k:"menge",l:"Menge",t:"text"},
+      {k:"kuerzel",l:"Kürzel",t:"select",req:1,src:"personen"}
+    ],
+    check(){ return ""; }
+  },
+  schulung:{ label:"Schulung / Belehrung", sub:"§ 43 IfSG, Hygieneschulung", basis:"§ 43 IfSG · § 4 LMHV · VO (EG) 852/2004 Anh. II Kap. XII",
+    fields:[
+      {k:"datum",l:"Datum",t:"date",req:1,def:"today"},
+      {k:"person",l:"Teilnehmende Person",t:"select",req:1,src:"personen"},
+      {k:"art",l:"Art",t:"select",req:1,opts:["Folgebelehrung § 43 IfSG","Hygieneschulung (§ 4 LMHV)","Erstbelehrung Gesundheitsamt (Bescheinigung)"]},
+      {k:"inhalt",l:"Inhalte",t:"textarea"},
+      {k:"durch",l:"Durchgeführt von",t:"text"},
+      {k:"foto",l:"Foto Bescheinigung / Teilnahmeliste",t:"photo"},
+      {k:"kuerzel",l:"Kürzel (erfasst von)",t:"select",req:1,src:"personen"}
+    ],
+    check(){ return ""; }
+  },
+  mangel:{ label:"Abweichung / Korrektur", sub:"Mängel und Maßnahmen", basis:"VO (EG) 852/2004 Art. 5",
+    fields:[
+      {k:"datum",l:"Datum",t:"date",req:1,def:"today"},
+      {k:"bereich",l:"Bereich",t:"text",req:1},
+      {k:"beschreibung",l:"Was ist aufgefallen?",t:"textarea",req:1},
+      {k:"massnahme",l:"Maßnahme",t:"textarea",req:1},
+      {k:"erledigt",l:"Erledigt am",t:"date"},
+      {k:"foto",l:"Foto (optional)",t:"photo"},
+      {k:"kuerzel",l:"Kürzel",t:"select",req:1,src:"personen"}
+    ],
+    check(d){ return d.erledigt ? "" : "offen"; }
+  }
+};
+const MOD_ORDER = ["temperatur","wareneingang","reinigung","schaedlinge","herstellung","abgabe","schulung","mangel"];
+
+/* ---------- Zustand ---------- */
+let S = null; let ENTRIES = []; let VIEW = "heute";
+const DEFAULT_SETTINGS = () => ({
+  betrieb:{name:"",adresse:"",registrierung:"",verantwortlich:"",wareneingangMax:7,schaedlingTage:30},
+  geraete:[], plan:[], personen:[], beispiel:false
+});
+function exampleSettings(){
+  const s = DEFAULT_SETTINGS();
+  s.beispiel = true;
+  s.betrieb = {name:"Beispielhof (Beispieldaten)",adresse:"Dorfstraße 1, 85000 Musterdorf",registrierung:"",verantwortlich:"Anna Beispiel",wareneingangMax:7,schaedlingTage:30};
+  s.geraete = [{id:"g1",name:"Kühlschrank Verkaufshäuschen",max:7},{id:"g2",name:"Kühltruhe Lager",max:-18}];
+  s.plan = [{id:"p1",bereich:"Verkaufsregal und Theke",freq:"täglich",mittel:"Reiniger, danach Flächendesinfektion"},{id:"p2",bereich:"Kühlschrank innen",freq:"wöchentlich",mittel:"Reiniger, Klarspülen"},{id:"p3",bereich:"Boden Verkaufshäuschen",freq:"wöchentlich",mittel:"Bodenreiniger"}];
+  s.personen = [{id:"a1",name:"Anna Beispiel",kuerzel:"AB",erst:"2023-03-01"},{id:"a2",name:"Ben Aushilfe",kuerzel:"BA",erst:"2025-05-10"}];
+  return s;
+}
+function exampleEntries(){
+  const t = new Date(); const d = n => { const x=new Date(t); x.setDate(x.getDate()-n); return isoDate(x); };
+  const mk = (module,data,daysAgo) => { const c=new Date(t); c.setDate(c.getDate()-daysAgo); return {id:uid(),module,data,createdAt:c.toISOString(),example:true}; };
+  return [
+    mk("temperatur",{datum:d(1),uhrzeit:"08:10",geraet:"g1",ist:"5.2",massnahme:"",kuerzel:"a1"},1),
+    mk("temperatur",{datum:d(1),uhrzeit:"08:12",geraet:"g2",ist:"-19.0",massnahme:"",kuerzel:"a1"},1),
+    mk("wareneingang",{datum:d(2),lieferant:"Molkerei Beispiel",produkt:"Bergkäse",menge:"5 kg",charge:"L2610",mhd:d(-40),kuehl:"ja",temp:"6.0",zustand:"in Ordnung",bio:true,massnahme:"",kuerzel:"a1"},2),
+    mk("reinigung",{datum:d(1),uhrzeit:"18:30",bereich:"p1",ergebnis:"sauber",massnahme:"",kuerzel:"a2"},1),
+    mk("schaedlinge",{datum:d(12),bereich:"alle Räume",befund:"kein Befall",art:"",dienstleister:"",massnahme:"",kuerzel:"a1"},12),
+    mk("schulung",{datum:"2024-11-05",person:"a1",art:"Folgebelehrung § 43 IfSG",inhalt:"Tätigkeitsverbote, Meldepflichten",durch:"Anna Beispiel",kuerzel:"a1"},700)
+  ];
+}
+
+/* ---------- Fälligkeiten ---------- */
+function lastDate(module, filter){ const xs=ENTRIES.filter(e=>e.module===module && !isCorrected(e) && (!filter||filter(e))).map(e=>e.data.datum).sort(); return xs.length?xs[xs.length-1]:null; }
+function isCorrected(e){ return ENTRIES.some(x=>x.correctionOf===e.id); }
+function dueList(){
+  const today = isoDate(new Date()); const out = [];
+  S.geraete.forEach(g=>{ const l=lastDate("temperatur",e=>e.data.geraet===g.id); out.push({mod:"temperatur",pre:{geraet:g.id},title:`Temperatur: ${g.name}`,sub:l?`zuletzt ${deDate(l)}`:"noch nie erfasst",state:l===today?"ok":"due"}); });
+  const freqDays = {"täglich":1,"wöchentlich":7,"monatlich":30};
+  S.plan.forEach(p=>{ const l=lastDate("reinigung",e=>e.data.bereich===p.id); const age=l?daysBetween(l,today):9999; out.push({mod:"reinigung",pre:{bereich:p.id},title:`Reinigung: ${p.bereich}`,sub:`${p.freq}${l?" · zuletzt "+deDate(l):" · noch nie erfasst"}`,state:age<(freqDays[p.freq]||1)?"ok":"due"}); });
+  const ls=lastDate("schaedlinge"); const sAge=ls?daysBetween(ls,today):9999;
+  out.push({mod:"schaedlinge",pre:{},title:"Schädlingskontrolle",sub:`alle ${S.betrieb.schaedlingTage} Tage${ls?" · zuletzt "+deDate(ls):" · noch nie erfasst"}`,state:sAge<Number(S.betrieb.schaedlingTage)?"ok":"due"});
+  S.personen.forEach(p=>{
+    const l = lastDate("schulung",e=>e.data.person===p.id && e.data.art!=="Hygieneschulung (§ 4 LMHV)");
+    const base = [l,p.erst].filter(Boolean).sort().pop();
+    if(!base){ out.push({mod:"schulung",pre:{person:p.id},title:`Belehrung § 43 IfSG: ${p.name}`,sub:"keine Erstbelehrung eingetragen",state:"bad"}); return; }
+    const dueD = new Date(base+"T12:00"); dueD.setFullYear(dueD.getFullYear()+2); const due=isoDate(dueD); const left=daysBetween(today,due);
+    out.push({mod:"schulung",pre:{person:p.id,art:"Folgebelehrung § 43 IfSG"},title:`Belehrung § 43 IfSG: ${p.name}`,sub:left<0?`seit ${deDate(due)} fällig`:`fällig am ${deDate(due)}`,state:left<0?"bad":left<=30?"due":"ok"});
+  });
+  ENTRIES.filter(e=>e.module==="mangel" && !isCorrected(e) && !e.data.erledigt).forEach(e=>out.push({mod:"mangel",edit:e.id,title:`Offener Mangel: ${e.data.bereich}`,sub:e.data.beschreibung,state:"bad"}));
+  return out;
+}
+
+/* ---------- Ansichten ---------- */
+const ICONS = {
+  heute:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  erfassen:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>',
+  verlauf:'<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
+  export:'<svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>',
+  betrieb:'<svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>'
+};
+const TABS = [["heute","Heute"],["erfassen","Erfassen"],["verlauf","Verlauf"],["export","Export"],["betrieb","Betrieb"]];
+function renderTabs(){ $("#tabs").innerHTML = TABS.map(([k,l])=>`<button type="button" data-v="${k}" ${VIEW===k?'aria-current="page"':""}>${ICONS[k]}<span>${l}</span></button>`).join(""); $("#tabs").querySelectorAll("button").forEach(b=>b.onclick=()=>go(b.dataset.v)); }
+function go(v){ VIEW=v; renderTabs(); render(); window.scrollTo(0,0); }
+function header(){ $("#betriebName").textContent = S.betrieb.name || "Betrieb noch nicht eingerichtet"; const d=new Date(); $("#todayLbl").textContent = d.toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"2-digit",year:"numeric"}); }
+function render(){ header(); ({heute:viewHeute,erfassen:viewErfassen,verlauf:viewVerlauf,export:viewExport,betrieb:viewBetrieb})[VIEW](); }
+
+function exampleBanner(){ return S.beispiel ? `<div class="banner"><b>Beispieldaten</b><span>Du siehst einen erfundenen Beispielbetrieb. Unter „Betrieb" kannst du die Beispieldaten entfernen und deinen eigenen Betrieb einrichten.</span></div>` : ""; }
+function storageBanner(){ return DB.persistent ? "" : `<div class="banner"><b>Achtung: Daten werden nicht dauerhaft gespeichert</b><span>Dieser Browser erlaubt hier keinen Speicher. Einträge gehen beim Schließen verloren. Bitte die installierte Version nutzen.</span></div>`; }
+
+function viewHeute(){
+  const due = dueList(); const open = due.filter(x=>x.state!=="ok"); const done = due.filter(x=>x.state==="ok");
+  const row = x => `<button class="item" type="button" style="font:inherit;text-align:left;cursor:pointer;color:inherit" data-mod="${x.mod}" data-pre='${esc(JSON.stringify(x.pre||{}))}' ${x.edit?`data-edit="${x.edit}"`:""}><span class="dot ${x.state==="ok"?"d-ok":x.state==="bad"?"d-bad":"d-warn"}"></span><span class="txt"><span class="t1">${esc(x.title)}</span><br><span class="t2">${esc(x.sub)}</span></span><span class="pill ${x.state==="ok"?"p-ok":x.state==="bad"?"p-bad":"p-warn"}">${x.state==="ok"?"erledigt":x.state==="bad"?"überfällig":"fällig"}</span></button>`;
+  $("#main").innerHTML = `${storageBanner()}${exampleBanner()}
+    <h2>${open.length ? `${open.length} Aufgabe${open.length>1?"n":""} offen` : "Heute ist alles dokumentiert"}</h2>
+    ${!S.geraete.length && !S.plan.length ? `<div class="banner info"><span>Lege unter „Betrieb" deine Kühlgeräte, den Reinigungsplan und die Personen an. Dann zeigt diese Seite jeden Tag, was zu dokumentieren ist.</span></div>`:""}
+    <div class="list">${open.map(row).join("")}</div>
+    ${done.length?`<h3 class="muted">Erledigt</h3><div class="list">${done.map(row).join("")}</div>`:""}`;
+  $("#main").querySelectorAll(".item[data-mod]").forEach(b=>b.onclick=()=>{ if(b.dataset.edit){ openForm("mangel",{},b.dataset.edit); } else openForm(b.dataset.mod, JSON.parse(b.dataset.pre)); });
+}
+
+function viewErfassen(){
+  $("#main").innerHTML = `${storageBanner()}<h2>Was möchtest du dokumentieren?</h2>
+    <div class="grid">${MOD_ORDER.map(k=>`<button class="mod" type="button" data-m="${k}"><b>${MODULES[k].label}</b><span>${MODULES[k].sub}</span></button>`).join("")}</div>`;
+  $("#main").querySelectorAll(".mod").forEach(b=>b.onclick=()=>openForm(b.dataset.m,{}));
+}
+
+/* ---------- Formular ---------- */
+function srcOptions(src){
+  if(src==="geraete") return S.geraete.map(g=>[g.id,`${g.name} (max. ${g.max} °C)`]);
+  if(src==="personen") return S.personen.map(p=>[p.id,`${p.kuerzel} – ${p.name}`]);
+  if(src==="plan") return S.plan.map(p=>[p.id,`${p.bereich} (${p.freq})`]);
+  return [];
+}
+function datalistValues(key){ const set=new Set(); ENTRIES.forEach(e=>{ const v=e.data[key]; if(v) set.add(v); }); return [...set].slice(0,40); }
+function labelFor(src,id){ const o=srcOptions(src).find(x=>x[0]===id); return o?o[1]:id; }
+
+function openForm(module, pre={}, correctId=null){
+  const M = MODULES[module]; const orig = correctId ? ENTRIES.find(e=>e.id===correctId) : null;
+  const data = {}; M.fields.forEach(f=>{ data[f.k] = orig ? (orig.data[f.k] ?? "") : (pre[f.k] ?? (f.def==="today"?isoDate(new Date()):f.def==="now"?nowTime():(f.t==="check"?false:(f.def??"")))); });
+  if(orig && orig.data.foto) data.foto = orig.data.foto;
+  const missingSrc = M.fields.filter(f=>f.src && f.req && !srcOptions(f.src).length).map(f=>f.src);
+  const dlg = document.createElement("dialog");
+  document.body.appendChild(dlg);
+  function fieldHTML(f){
+    if(f.showIf && !f.showIf(data)) return "";
+    const req = f.req || (f.reqIf && f.reqIf(data));
+    const id = `f_${f.k}`; const v = data[f.k];
+    let ctl = "";
+    if(f.t==="select"){ const opts = f.src ? srcOptions(f.src) : f.opts.map(o=>[o,o]); ctl = `<select id="${id}" data-k="${f.k}"><option value="">Bitte wählen</option>${opts.map(([val,l])=>`<option value="${esc(val)}" ${val===v?"selected":""}>${esc(l)}</option>`).join("")}</select>`; }
+    else if(f.t==="textarea") ctl = `<textarea id="${id}" data-k="${f.k}">${esc(v)}</textarea>`;
+    else if(f.t==="check") return `<label class="chk"><input type="checkbox" id="${id}" data-k="${f.k}" ${v?"checked":""}> <span>${esc(f.l)}${f.hint?`<br><span class="hint muted small">${esc(f.hint)}</span>`:""}</span></label>`;
+    else if(f.t==="photo") ctl = `<input type="file" id="${id}" accept="image/*" capture="environment" data-photo="${f.k}"><div class="photo-prev" id="${id}_prev">${v?`<img src="${v}" alt="Foto">`:""}</div>`;
+    else { const list = f.list ? `list="dl_${f.k}"` : ""; ctl = `<input id="${id}" data-k="${f.k}" type="${f.t}" ${f.step?`step="${f.step}" inputmode="decimal"`:""} value="${esc(v)}" ${list}>${f.list?`<datalist id="dl_${f.k}">${datalistValues(f.list).map(x=>`<option value="${esc(x)}">`).join("")}</datalist>`:""}`; }
+    return `<div class="fld"><label for="${id}" class="${req?"req":""}">${esc(f.l)}</label>${ctl}${f.hint?`<span class="hint">${esc(f.hint)}</span>`:""}<span class="err" id="${id}_err"></span></div>`;
+  }
+  function warnHTML(w){ return w && module!=="mangel" ? `<div class="warnbox">Abweichung: ${esc(w)}. Bitte die Maßnahme eintragen.</div>` : ""; }
+  function updateWarn(){ const s=dlg.querySelector("#warnslot"); if(s) s.innerHTML = warnHTML(M.check(data,S)); }
+  function draw(){
+    const warn = M.check(data,S);
+    dlg.innerHTML = `<form class="dbody f" novalidate>
+      <div><h2>${orig?"Korrektur: ":""}${esc(M.label)}</h2><div class="basis">${esc(M.basis)}</div></div>
+      ${orig?`<div class="banner info small">Der ursprüngliche Eintrag vom ${deStamp(orig.createdAt)} bleibt erhalten und wird als „korrigiert" markiert.</div>`:""}
+      ${missingSrc.length?`<div class="warnbox">Bitte zuerst unter „Betrieb" anlegen: ${missingSrc.map(s=>({geraete:"Kühlgeräte",personen:"Personen",plan:"Reinigungsplan"})[s]).join(", ")}.</div>`:""}
+      ${M.fields.map(fieldHTML).join("")}
+      <div id="warnslot">${warnHTML(warn)}</div>
+      <div class="row"><button class="btn" type="submit">Speichern</button><button class="btn sec" type="button" id="cancel">Abbrechen</button></div>
+      <span class="meta">Datum und Uhrzeit der Speicherung werden automatisch festgehalten. Gespeicherte Einträge lassen sich nicht löschen, nur korrigieren.</span>
+    </form>`;
+    dlg.querySelector("#cancel").onclick = () => { dlg.close(); dlg.remove(); };
+    dlg.querySelectorAll("[data-k]").forEach(el=>{
+      const val = () => el.type==="checkbox" ? el.checked : el.value;
+      // Tippen nur speichern, neu zeichnen erst bei Auswahl oder Verlassen des Feldes (Abweichungs-Hinweis, abhängige Felder)
+      el.addEventListener("input", ()=>{ data[el.dataset.k] = val(); });
+      el.addEventListener("change", ()=>{ data[el.dataset.k] = val(); if(el.tagName==="SELECT" || el.type==="checkbox") draw(); else updateWarn(); });
+    });
+    dlg.querySelectorAll("[data-photo]").forEach(inp=>inp.onchange=async()=>{ const f=inp.files[0]; if(!f) return; data[inp.dataset.photo] = await shrink(f); draw(); });
+    dlg.querySelector("form").onsubmit = async ev => {
+      ev.preventDefault();
+      let okAll = true;
+      M.fields.forEach(f=>{ if(f.showIf && !f.showIf(data)) return; const req=f.req||(f.reqIf&&f.reqIf(data)); const el=dlg.querySelector(`#f_${f.k}_err`); if(!el) return; const empty = data[f.k]===""||data[f.k]==null; el.textContent = req && empty ? "Pflichtfeld" : ""; if(req&&empty) okAll=false; });
+      const w = M.check(data,S); const me = dlg.querySelector("#f_massnahme_err");
+      if(w && module!=="mangel" && !String(data.massnahme||"").trim()){ if(me) me.textContent="Bei einer Abweichung ist die Maßnahme Pflicht."; okAll=false; }
+      if(missingSrc.length) okAll=false;
+      if(!okAll){ toast("Bitte die markierten Felder ausfüllen."); return; }
+      const clean = {}; M.fields.forEach(f=>{ if(f.showIf && !f.showIf(data)) clean[f.k]=""; else clean[f.k]=data[f.k]; });
+      const entry = {id:uid(),module,data:clean,createdAt:new Date().toISOString(),abweichung:w||"",correctionOf:orig?orig.id:null,example:S.beispiel||undefined};
+      await DB.put(entry); ENTRIES.push(entry);
+      dlg.close(); dlg.remove(); toast(orig?"Korrektur gespeichert":"Gespeichert"); render();
+    };
+  }
+  draw(); dlg.showModal();
+  dlg.addEventListener("cancel",()=>dlg.remove());
+}
+function shrink(file){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{ const m=1280; let w=img.width,h=img.height; if(w>m||h>m){ const s=m/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);} const c=document.createElement("canvas"); c.width=w; c.height=h; c.getContext("2d").drawImage(img,0,0,w,h); res(c.toDataURL("image/jpeg",0.7)); }; img.onerror=()=>res(""); img.src=r.result; }; r.readAsDataURL(file); }); }
+
+/* ---------- Verlauf ---------- */
+let VFILTER = {mod:"", month:isoDate(new Date()).slice(0,7)};
+function displayValue(f,v){
+  if(f.t==="photo") return v?"Foto vorhanden":"";
+  if(f.t==="check") return v?"ja":"nein";
+  if(f.t==="date") return deDate(v);
+  if(f.src) return labelFor(f.src,v);
+  return v;
+}
+function viewVerlauf(){
+  const months = [...new Set(ENTRIES.map(e=>e.data.datum?.slice(0,7)).filter(Boolean).concat([VFILTER.month]))].sort().reverse();
+  const list = ENTRIES.filter(e=>(!VFILTER.mod||e.module===VFILTER.mod) && e.data.datum?.slice(0,7)===VFILTER.month).sort((a,b)=>(b.data.datum+b.createdAt).localeCompare(a.data.datum+a.createdAt));
+  $("#main").innerHTML = `<h2>Verlauf</h2>
+    <div class="two"><select id="vm" aria-label="Bereich"><option value="">Alle Bereiche</option>${MOD_ORDER.map(k=>`<option value="${k}" ${VFILTER.mod===k?"selected":""}>${MODULES[k].label}</option>`).join("")}</select>
+    <select id="vmo" aria-label="Monat">${months.map(m=>`<option value="${m}" ${m===VFILTER.month?"selected":""}>${new Date(m+"-15").toLocaleDateString("de-DE",{month:"long",year:"numeric"})}</option>`).join("")}</select></div>
+    <div class="list">${list.length?list.map(entryHTML).join(""):`<div class="card muted">Keine Einträge in diesem Monat.</div>`}</div>`;
+  $("#vm").onchange=e=>{VFILTER.mod=e.target.value; viewVerlauf();};
+  $("#vmo").onchange=e=>{VFILTER.month=e.target.value; viewVerlauf();};
+  $("#main").querySelectorAll("[data-corr]").forEach(b=>b.onclick=()=>{ const e=ENTRIES.find(x=>x.id===b.dataset.corr); openForm(e.module,{},e.id); });
+}
+function entryHTML(e){
+  const M=MODULES[e.module]; const corr=isCorrected(e);
+  const rows = M.fields.filter(f=>{ const v=e.data[f.k]; return v!=="" && v!=null && v!==false; }).map(f=>`<dt>${esc(f.l.replace(/ \(optional\)/,""))}</dt><dd>${esc(displayValue(f,e.data[f.k]))}</dd>`).join("");
+  return `<div class="entry ${corr?"corrected":""}"><div class="hd"><b>${esc(M.label)}</b><span>${e.abweichung&&e.module!=="mangel"?`<span class="pill p-bad">Abweichung</span> `:""}${corr?'<span class="pill p-warn">korrigiert</span>':""}${e.correctionOf?'<span class="pill p-ok">Korrektur</span>':""}</span></div>
+    <dl>${rows}</dl>${e.data.foto?`<div class="photo-prev"><img src="${e.data.foto}" alt="Foto zum Eintrag"></div>`:""}
+    <div class="row" style="justify-content:space-between"><span class="meta">gespeichert ${deStamp(e.createdAt)}${e.example?" · Beispiel":""}</span>${corr?"":`<button class="btn sec sm" type="button" data-corr="${e.id}">Korrigieren</button>`}</div></div>`;
+}
+
+/* ---------- Export ---------- */
+function viewExport(){
+  const months = [...new Set(ENTRIES.map(e=>e.data.datum?.slice(0,7)).filter(Boolean).concat([isoDate(new Date()).slice(0,7)]))].sort().reverse();
+  $("#main").innerHTML = `<h2>Export für die Lebensmittelkontrolle</h2>
+    <div class="card"><h3>Monatsbericht als PDF</h3>
+      <p class="small muted" style="margin:0">Enthält alle Einträge des Monats nach Bereichen, mit Abweichungen, Korrekturen, Speicherzeitpunkt und Fotos im Anhang.</p>
+      <select id="em" aria-label="Monat">${months.map(m=>`<option value="${m}">${new Date(m+"-15").toLocaleDateString("de-DE",{month:"long",year:"numeric"})}</option>`).join("")}</select>
+      <div class="row"><button class="btn" type="button" id="pdf">PDF erstellen</button></div></div>
+    <div class="card"><h3>Datensicherung</h3>
+      <p class="small muted" style="margin:0">Sichere deine Daten regelmäßig, am besten jede Woche, auf einem anderen Gerät oder in der Cloud. Die Daten liegen nur auf diesem Gerät.</p>
+      <div class="row"><button class="btn sec" type="button" id="bk">Sicherung herunterladen</button><label class="btn sec" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">Sicherung einspielen<input type="file" id="imp" accept="application/json" hidden></label></div></div>
+    <div class="banner info small"><span>Testversion: Alle Daten liegen nur auf diesem Gerät. Bitte jede Woche eine Sicherung exportieren.</span></div>
+    <p class="meta">HofDoku ${APP_VERSION} · Aufbewahrung: mindestens ${RETENTION_YEARS} Jahre empfohlen</p>`;
+  $("#pdf").onclick=()=>makePDF($("#em").value);
+  $("#bk").onclick=()=>{ const blob=new Blob([JSON.stringify({app:"HofDoku",version:APP_VERSION,exportedAt:new Date().toISOString(),settings:S,entries:ENTRIES})],{type:"application/json"}); download(blob,`HofDoku-Sicherung-${isoDate(new Date())}.json`); };
+  $("#imp").onchange=async ev=>{ const f=ev.target.files[0]; if(!f) return; try{ const j=JSON.parse(await f.text()); if(j.app!=="HofDoku"||!Array.isArray(j.entries)) throw 0; const ids=new Set(ENTRIES.map(e=>e.id)); let n=0; for(const e of j.entries){ if(!ids.has(e.id)){ await DB.put(e); ENTRIES.push(e); n++; } } if(j.settings && !S.betrieb.name){ S=j.settings; await DB.setKV("settings",S);} toast(`${n} Einträge übernommen`); render(); }catch(e){ toast("Die Datei ist keine HofDoku-Sicherung."); } };
+}
+function download(blob,name){ try{ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1500); toast("Download gestartet"); }catch(e){ toast("Download hier nicht möglich."); } }
+function makePDF(month){
+  if(!window.jspdf){ toast("PDF-Funktion nicht geladen. Bitte App neu öffnen."); return; }
+  const { jsPDF } = window.jspdf; const doc = new jsPDF({unit:"mm",format:"a4"});
+  const mName = new Date(month+"-15").toLocaleDateString("de-DE",{month:"long",year:"numeric"});
+  doc.setFontSize(15); doc.text(`Eigenkontrolle Lebensmittelhygiene – ${mName}`,14,16);
+  doc.setFontSize(9); doc.text([`Betrieb: ${S.betrieb.name||"-"}  ·  ${S.betrieb.adresse||""}`,`Verantwortlich: ${S.betrieb.verantwortlich||"-"}${S.betrieb.registrierung?"  ·  Registrierung: "+S.betrieb.registrierung:""}`,`Erstellt: ${deStamp(new Date().toISOString())} mit HofDoku ${APP_VERSION}`],14,23);
+  let y = 38; const photos = [];
+  MOD_ORDER.forEach(k=>{
+    const M=MODULES[k]; const es=ENTRIES.filter(e=>e.module===k && e.data.datum?.slice(0,7)===month).sort((a,b)=>(a.data.datum+a.createdAt).localeCompare(b.data.datum+b.createdAt));
+    if(!es.length) return;
+    const cols = M.fields.filter(f=>f.t!=="photo");
+    doc.setFontSize(11); doc.text(`${M.label}  (${M.basis})`,14,y);
+    doc.autoTable({startY:y+2,head:[[...cols.map(f=>f.l.replace(/ \(.*\)/,"")),"Status","gespeichert"]],body:es.map(e=>{ if(e.data.foto) photos.push(e); return [...cols.map(f=>String(displayValue(f,e.data[f.k])??"")),[e.abweichung&&k!=="mangel"?"Abweichung":"",isCorrected(e)?"korrigiert":"",e.correctionOf?"Korrektur":""].filter(Boolean).join(", "),deStamp(e.createdAt)]; }),styles:{fontSize:7,cellPadding:1.2},headStyles:{fillColor:[47,107,58]},margin:{left:14,right:14}});
+    y = doc.lastAutoTable.finalY + 10; if(y>260){ doc.addPage(); y=18; }
+  });
+  if(photos.length){ doc.addPage(); doc.setFontSize(12); doc.text("Fotoanhang",14,16); let x=14, py=22;
+    photos.forEach(e=>{ try{ doc.addImage(e.data.foto,"JPEG",x,py,56,42); }catch(err){} doc.setFontSize(7); doc.text(`${MODULES[e.module].label} · ${deDate(e.data.datum)} · ${deStamp(e.createdAt)}`,x,py+46); x+=62; if(x>140){ x=14; py+=54; if(py>240){ doc.addPage(); py=16; } } }); }
+  const pages = doc.getNumberOfPages(); for(let i=1;i<=pages;i++){ doc.setPage(i); doc.setFontSize(7); doc.text(`Seite ${i} von ${pages}`,190,290,{align:"right"}); }
+  download(doc.output("blob"),`HofDoku-${month}.pdf`);
+}
+
+/* ---------- Betrieb / Einstellungen ---------- */
+function viewBetrieb(){
+  const b=S.betrieb;
+  $("#main").innerHTML = `${exampleBanner()}
+    ${S.beispiel?`<div class="row"><button class="btn" type="button" id="clearEx">Beispieldaten entfernen und neu beginnen</button></div>`:""}
+    <div class="card"><h3>Betrieb</h3>
+      <div class="fld"><label for="b_name" class="req">Name des Betriebs</label><input id="b_name" value="${esc(b.name)}"></div>
+      <div class="fld"><label for="b_adr">Anschrift</label><input id="b_adr" value="${esc(b.adresse)}"></div>
+      <div class="two"><div class="fld"><label for="b_ver">Verantwortliche Person</label><input id="b_ver" value="${esc(b.verantwortlich)}"></div>
+      <div class="fld"><label for="b_reg">Registrier- oder Aktenzeichen (optional)</label><input id="b_reg" value="${esc(b.registrierung)}"></div></div>
+      <div class="two"><div class="fld"><label for="b_we">Höchste Anliefertemperatur Kühlware (°C)</label><input id="b_we" type="number" step="0.1" value="${esc(b.wareneingangMax)}"><span class="hint">Produktvorgaben der Hersteller und Lieferanten prüfen.</span></div>
+      <div class="fld"><label for="b_sch">Schädlingskontrolle alle … Tage</label><input id="b_sch" type="number" min="1" value="${esc(b.schaedlingTage)}"><span class="hint">Wie im eigenen Plan festgelegt.</span></div></div>
+      <div class="row"><button class="btn" type="button" id="saveB">Betrieb speichern</button></div></div>
+    ${listEditor("Kühlgeräte","geraete",[["name","Bezeichnung","text"],["max","Höchsttemperatur °C","number"]],g=>`${g.name} · max. ${g.max} °C`,"Grenzwert nach Produkt wählen, z. B. Herstellerangabe oder Leitlinie.")}
+    ${listEditor("Reinigungsplan","plan",[["bereich","Bereich / Gegenstand","text"],["freq","Häufigkeit","freq"],["mittel","Mittel und Vorgehen","text"]],p=>`${p.bereich} · ${p.freq}${p.mittel?" · "+p.mittel:""}`)}
+    ${listEditor("Personen","personen",[["name","Name","text"],["kuerzel","Kürzel","text"],["erst","Datum Erstbelehrung (Gesundheitsamt)","date"]],p=>`${p.kuerzel} – ${p.name}${p.erst?" · Erstbelehrung "+deDate(p.erst):""}`,"Die Folgebelehrung nach § 43 IfSG wird 2 Jahre nach der letzten Belehrung fällig.")}
+    <div class="card"><h3>Rechtsgrundlagen dieser Version</h3>
+      <ul class="small" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">
+        <li>VO (EG) 852/2004 Lebensmittelhygiene, Art. 5 und Anhang II</li>
+        <li>VO (EG) 178/2002 Art. 18 Rückverfolgbarkeit</li>
+        <li>Bekanntmachung der Kommission 2022/C 355/01 (vereinfachte Dokumentation kleiner Betriebe)</li>
+        <li>§ 43 IfSG Belehrung, § 4 LMHV Hygieneschulung (Deutschland)</li>
+      </ul>
+      <p class="small muted" style="margin:0">HofDoku unterstützt die Dokumentation der Eigenkontrollen. Die Verantwortung für die Lebensmittelsicherheit bleibt beim Betrieb. Nicht enthalten: Bio-Dokumentation nach EU-Öko-Verordnung, Gefahrenanalyse/HACCP-Plan.</p></div>
+    <div class="card"><h3>Alle Daten löschen</h3><p class="small muted" style="margin:0">Aufzeichnungen sollten mindestens ${RETENTION_YEARS} Jahre aufbewahrt werden. Vorher eine Sicherung herunterladen.</p>
+      <div class="fld"><label for="delc">Zum Bestätigen LÖSCHEN eingeben</label><input id="delc" autocomplete="off"></div>
+      <div class="row"><button class="btn danger" type="button" id="delAll">Alle Daten auf diesem Gerät löschen</button></div></div>`;
+  $("#saveB").onclick=async()=>{ const n=$("#b_name").value.trim(); if(!n){ toast("Bitte den Namen des Betriebs eintragen."); return; } Object.assign(S.betrieb,{name:n,adresse:$("#b_adr").value.trim(),verantwortlich:$("#b_ver").value.trim(),registrierung:$("#b_reg").value.trim(),wareneingangMax:Number($("#b_we").value||7),schaedlingTage:Number($("#b_sch").value||30)}); await saveS(); toast("Betrieb gespeichert"); render(); };
+  if($("#clearEx")) $("#clearEx").onclick=async()=>{ await DB.clear(); S=DEFAULT_SETTINGS(); ENTRIES=[]; await saveS(); toast("Beispieldaten entfernt"); render(); };
+  $("#delAll").onclick=async()=>{ if($("#delc").value!=="LÖSCHEN"){ toast("Bitte LÖSCHEN eingeben."); return; } await DB.clear(); S=DEFAULT_SETTINGS(); ENTRIES=[]; await saveS(); toast("Alle Daten gelöscht"); go("heute"); };
+  bindListEditors();
+}
+function listEditor(title,key,fields,fmt,hint){
+  return `<div class="card" data-le="${key}"><h3>${title}</h3>${hint?`<p class="small muted" style="margin:0">${esc(hint)}</p>`:""}
+    <div class="list">${S[key].map(x=>`<div class="item"><span class="txt">${esc(fmt(x))}</span><button class="btn sec sm" type="button" data-del="${x.id}" aria-label="Entfernen">Entfernen</button></div>`).join("")||`<span class="small muted">Noch nichts angelegt.</span>`}</div>
+    <div class="two">${fields.map(([k,l,t])=>`<div class="fld"><label for="le_${key}_${k}">${l}</label>${t==="freq"?`<select id="le_${key}_${k}"><option>täglich</option><option>wöchentlich</option><option>monatlich</option></select>`:`<input id="le_${key}_${k}" type="${t}" ${t==="number"?'step="0.1"':""}>`}</div>`).join("")}</div>
+    <div class="row"><button class="btn sec" type="button" data-add="${key}" data-fields="${fields.map(f=>f[0]).join(",")}">Hinzufügen</button></div></div>`;
+}
+function bindListEditors(){
+  document.querySelectorAll("[data-add]").forEach(b=>b.onclick=async()=>{ const key=b.dataset.add; const obj={id:uid()}; let ok=true; b.dataset.fields.split(",").forEach(k=>{ const v=document.getElementById(`le_${key}_${k}`).value.trim(); obj[k]=v; if(!v && k!=="mittel" && k!=="erst") ok=false; }); if(!ok){ toast("Bitte alle Felder ausfüllen."); return; } S[key].push(obj); await saveS(); toast("Hinzugefügt"); render(); });
+  document.querySelectorAll("[data-le] [data-del]").forEach(b=>b.onclick=async()=>{ const key=b.closest("[data-le]").dataset.le; S[key]=S[key].filter(x=>x.id!==b.dataset.del); await saveS(); render(); });
+}
+async function saveS(){ await DB.setKV("settings",S); }
+
+/* ---------- Start ---------- */
+(async function start(){
+  await DB.open();
+  S = await DB.getKV("settings").catch(()=>null);
+  ENTRIES = await DB.all().catch(()=>[]);
+  if(!S){ S = exampleSettings(); await saveS(); for(const e of exampleEntries()){ await DB.put(e); ENTRIES.push(e); } }
+  renderTabs(); render();
+  try{ if(navigator.storage && navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
+})();
+if("serviceWorker" in navigator){ window.addEventListener("load",()=>{ navigator.serviceWorker.register("service-worker.js").catch(()=>{}); }); }
+</script>
+
+</body></html>

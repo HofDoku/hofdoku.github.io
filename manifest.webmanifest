@@ -1,0 +1,17 @@
+{
+  "name": "HofDoku – Hygiene-Dokumentation",
+  "short_name": "HofDoku",
+  "description": "Lebensmittelhygiene-Dokumentation für Direktvermarkter (Testversion)",
+  "lang": "de",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f5f1",
+  "theme_color": "#2f6b3a",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
